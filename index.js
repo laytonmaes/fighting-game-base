@@ -8,6 +8,12 @@ c.fillRect(0, 0, canvas.width, canvas.height)
 
 //----------------------- global var -----------------------\\
 const gravity = .5
+
+//----------------------- querySelectors -----------------------\\
+const playerHealth = document.querySelector("#playerHealth")
+const enemyHealth = document.querySelector("#enemyHealth")
+const timerDom = document.querySelector(".timer") 
+const winScreen = document.querySelector(".win-screen") 
 //----------------------- player -----------------------\\
 const player = new Sprite({
     position: {
@@ -18,7 +24,10 @@ const player = new Sprite({
         x: 0,
         y: 10
     },
-    color: "yellow"
+    offset: {
+        x:0,
+        y:0
+    },
 })
 
 player.draw()
@@ -31,6 +40,10 @@ const enemy = new Sprite({
     velocity: {
         x: 0,
         y: 0
+    },
+    offset: {
+        x:-15,
+        y:0
     },
     color: "red"
 })
@@ -74,26 +87,79 @@ const checkMoveX = () => {
     }
 } 
 
-const detectCollisionHit = () => {
-    if(
-        player.attackBox.position.x + player.attackBox.width >= enemy.position.x &&
-        player.attackBox.position.x <= enemy.position.x + enemy.width &&
-        player.attackBox.position.y + player.attackBox.height >= enemy.position.y &&
-        player.attackBox.position.y <= enemy.position.y + enemy.height
-        ) {
-        console.log("stuff")
+const hitCollision = (charHit, charHurt) => {
+    return (
+        charHit.attackBox.position.x + charHit.attackBox.width >= charHurt.position.x &&
+        charHit.attackBox.position.x <= charHurt.position.x + charHurt.width &&
+        charHit.attackBox.position.y + charHit.attackBox.height >= charHurt.position.y &&
+        charHit.attackBox.position.y <= charHurt.position.y + charHurt.height
+    )
+}
+
+const checkHit = () => {
+    if(hitCollision(player, enemy) && player.isAttacking) {
+        player.isAttacking = false
+        enemy.health -= 10
+        enemyHealth.style.width = `${enemy.health}%`
+    }
+    if(hitCollision(enemy, player) && enemy.isAttacking) {
+        enemy.isAttacking = false
+        player.health -= 10
+        playerHealth.style.width = `${player.health}%`
     }
 }
 
+let timer = 10
+let timerId
+let gameEnd = false
+
+const checkWin = () => {
+    if(player.health === 0) {
+        gameEnd = true;
+        clearTimeout(timerId)
+    } else if(enemy.health === 0) {
+        gameEnd = true;
+        clearTimeout(timerId)
+    } 
+    if (gameEnd) {
+        if(player.health === enemy.health) {
+            winScreen.innerHTML = "tie"
+        } else if (player.health > enemy.health) {
+            winScreen.innerHTML = "player1"
+        } else {
+            winScreen.innerHTML = "player2"
+        }
+        return true
+    }
+}
+
+const decreaseTimer = () => {
+    if (timer > 0) {
+        timerId = setTimeout(decreaseTimer, 1000)
+        timer-- 
+        timerDom.innerHTML = timer
+    }
+    if(timer <= 0) {
+        gameEnd = true
+        clearTimeout(timerId)
+        checkWin()
+    }
+}
+decreaseTimer()
+
 const animate = () => {
-    window.requestAnimationFrame(animate)
     c.fillStyle ="black"
     c.fillRect(0,0, canvas.width, canvas.height)
     player.update()
     enemy.update()
     
     checkMoveX()
-    detectCollisionHit()
+    checkHit()
+    checkWin()
+    if (checkWin()) {
+        return
+    }
+    window.requestAnimationFrame(animate)
 }
 
 animate()
@@ -101,6 +167,7 @@ animate()
 //----------------------- event listeners -----------------------\\
 window.addEventListener("keydown", (event) => {
     lastKey = ""
+    // console.log(event.key)
     switch(event.key) {
         case "d":
             keys.d.pressed = true;
@@ -113,7 +180,9 @@ window.addEventListener("keydown", (event) => {
         case "w" :
             player.velocity.y = -13
             break
-
+        case " ":
+            player.attack()
+            break
         }
 
         // enemy keys // 
@@ -128,6 +197,9 @@ window.addEventListener("keydown", (event) => {
             break
         case "ArrowUp" :
             enemy.velocity.y = -13
+            break;
+        case "/":
+            enemy.attack()
             break
         }
 })
